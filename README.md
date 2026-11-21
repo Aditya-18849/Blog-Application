@@ -2,7 +2,7 @@
 
 A MERN blog (MongoDB · Express · React · Node) with TanStack Query, packaged with
 Docker, orchestrated locally with Docker Compose, deployed to Google Cloud Run
-(images on Docker Hub, data on MongoDB Atlas) and automated with GitHub Actions.
+/ Render (images on Docker Hub, data on MongoDB Atlas) and automated with GitHub Actions.
 
 ```
 Assignment 4/
@@ -22,7 +22,8 @@ Assignment 4/
 ├── .github/workflows/
 │   ├── backend-ci.yml       install → lint → test   (push / PR)
 │   ├── frontend-ci.yml      install → lint → build  (push / PR)
-│   └── cd.yml               test → build & push to Docker Hub → deploy to Cloud Run (main)
+│   └── cd.yml               test → build & push to Docker Hub → deploy to Render (main)
+├── render.yaml              Render Blueprint (both web services)
 └── REPORT.md                deployment procedure, challenges, roles of each tool
 ```
 
@@ -69,7 +70,15 @@ docker compose down          # add -v to wipe the database volume
 
 Frontend http://localhost:3000 · Backend http://localhost:3001 · MongoDB localhost:27017
 
-## 4. Cloud deployment (manual, first time)
+## 4. Cloud deployment – Render (used for this submission)
+
+1. MongoDB Atlas free M0 cluster, network access `0.0.0.0/0`, copy the connection string.
+2. Push this repo to GitHub.
+3. dashboard.render.com → **New → Blueprint** → select the repo (`render.yaml` defines both services).
+4. Enter `DATABASE_URL` (Atlas string) and `BACKEND_URL` (`https://blog-backend.onrender.com`, or the real backend URL Render shows) → **Apply**.
+5. Open `https://blog-frontend.onrender.com` and create a post.
+
+## 4b. Alternative: Google Cloud Run (manual, first time)
 
 1. **MongoDB Atlas** – create a free M0 cluster, a database user, allow network
    access `0.0.0.0/0` (Cloud Run has no fixed IP), copy the connection string:
@@ -100,10 +109,10 @@ Push the project to GitHub, then add **Settings → Secrets and variables → Ac
 |---|---|
 | `DOCKERHUB_USERNAME` | Docker Hub username |
 | `DOCKERHUB_TOKEN` | Docker Hub access token (Account settings → Personal access tokens) |
-| `GCP_SA_KEY` | JSON key of a service account with roles *Cloud Run Admin* + *Service Account User* |
-| `DATABASE_URL` | MongoDB Atlas connection string |
+| `RENDER_BACKEND_DEPLOY_HOOK` | Render → blog-backend → Settings → Deploy Hook |
+| `RENDER_FRONTEND_DEPLOY_HOOK` | Render → blog-frontend → Settings → Deploy Hook |
 
-Optional repository variable `GCP_REGION` (default `asia-south1`).
+Repository **variable** `RENDER_FRONTEND_URL` = `https://blog-frontend.onrender.com` (used for the smoke test).
 
 * Every push / pull request → **Backend CI** and **Frontend CI** (install, lint, test/build).
-* Every push or merged PR to `main` → **CD** (tests → Docker Hub push tagged `latest` + commit SHA → Cloud Run deploy → smoke test).
+* Every push or merged PR to `main` → **CD** (tests → Docker Hub push tagged `latest` + commit SHA → Render deploy hooks → smoke test).

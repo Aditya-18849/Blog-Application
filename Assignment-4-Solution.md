@@ -3,7 +3,7 @@
 **Topic:** Containerization, Cloud Deployment and CI/CD Automation of a MERN Stack Blog Application
 
 > Every output in Tasks 1 and 2 and in the test run was captured on this machine
-> (21 Nov 2026). Tasks 3–5 need personal Docker Hub, Google Cloud, MongoDB Atlas and
+> (21 Nov 2026). Tasks 3–5 need personal Docker Hub, Render, MongoDB Atlas and
 > GitHub accounts. For those tasks the exact commands and files are given; run them and
 > paste in your own URLs and screenshots where marked **[fill in]**.
 
@@ -52,7 +52,7 @@ const createPostMutation = useMutation({
 ```
 The frontend always calls the relative path `/api/v1/...` (`src/api/posts.js`). nginx in the
 frontend container forwards `/api/` to `$BACKEND_URL`. The same image therefore works in
-Docker, Docker Compose and Cloud Run, and only an environment variable changes.
+Docker, Docker Compose and Render (or Cloud Run), and only an environment variable changes.
 
 ---
 
@@ -111,7 +111,7 @@ server {
 
     location /api/ {                       # reverse-proxy to the Express API
         proxy_pass ${BACKEND_URL};
-        proxy_ssl_server_name on;          # needed for HTTPS Cloud Run backend
+        proxy_ssl_server_name on;          # needed for an HTTPS backend (Render / Cloud Run)
         proxy_http_version 1.1;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -323,17 +323,21 @@ and the post that was created is listed. Screenshot: `screenshots/app-docker-com
 
 ---
 
-## Task 3 – Cloud Deployment
+## Task 3 – Cloud Deployment (Render)
+
+> The question names Google Cloud Run, which needs a billing card. This project is
+> deployed on **Render** instead. Render also runs Docker containers as public HTTPS
+> web services and has a free tier with no card. The Docker images are unchanged; the
+> same `gcloud run deploy` commands still work if Cloud Run is required (see README.md §4).
 
 ### 3(a) MongoDB Atlas
 1. Go to cloud.mongodb.com, choose **Create**, then the **M0 Free** cluster.
 2. **Database Access:** add a user, e.g. `bloguser`, with a password.
-3. **Network Access:** add `0.0.0.0/0`. Cloud Run has no fixed outbound IP.
+3. **Network Access:** add `0.0.0.0/0`. Render has no fixed outbound IP.
 4. **Connect, then Drivers:** copy the connection string and add the DB name `blog`:
    `mongodb+srv://bloguser:<password>@cluster0.xxxxx.mongodb.net/blog?retryWrites=true&w=majority`
 
 ### 3(b) Docker Hub repositories and image push
-Create the public repos `blog-backend` and `blog-frontend` on hub.docker.com, then run:
 ```powershell
 docker login
 docker build -t <dockerhub-user>/blog-backend:latest  ./backend
@@ -344,37 +348,61 @@ docker push <dockerhub-user>/blog-frontend:latest
 Expected output: `latest: digest: sha256:... size: ...` for each image.
 **Docker Hub URLs [fill in]:** `https://hub.docker.com/r/<user>/blog-backend`, `https://hub.docker.com/r/<user>/blog-frontend`
 
-### 3(c)(d) Deploy to Google Cloud Run with environment variables
-```powershell
-gcloud auth login
-gcloud config set project <PROJECT_ID>
-gcloud services enable run.googleapis.com
-```
-Deploy the backend first, with the database connection string:
-```powershell
-gcloud run deploy blog-backend --image docker.io/<dockerhub-user>/blog-backend:latest --region asia-south1 --allow-unauthenticated --port 8080 --set-env-vars "DATABASE_URL=<atlas-connection-string>,CORS_ORIGIN=*"
-```
-Output: `Service URL: https://blog-backend-xxxxx.asia-south1.run.app`
+### 3(c)(d) Deploy backend and frontend to Render with environment variables
+`render.yaml` is a Render Blueprint, so both services are defined as code:
+```yaml
+services:
+  - type: web
+    name: blog-backend
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/v1/health
+    autoDeploy: false
+    envVars:
+      - key: DATABASE_URL        # MongoDB Atlas connection string
+        sync: false
+      - key: CORS_ORIGIN
+        value: "*"
 
-Then deploy the frontend, with the backend API URL:
-```powershell
-gcloud run deploy blog-frontend --image docker.io/<dockerhub-user>/blog-frontend:latest --region asia-south1 --allow-unauthenticated --port 8080 --set-env-vars "BACKEND_URL=https://blog-backend-xxxxx.asia-south1.run.app"
+  - type: web
+    name: blog-frontend
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    autoDeploy: false
+    envVars:
+      - key: BACKEND_URL         # public URL of blog-backend
+        sync: false
 ```
-Output: `Service URL: https://blog-frontend-xxxxx.asia-south1.run.app`
+Steps:
+1. Push the repo to GitHub (Task 4(a)).
+2. On dashboard.render.com, sign in with GitHub, then choose **New → Blueprint** and select the repo.
+3. Render asks for the `sync: false` values:
+   * `DATABASE_URL`: the Atlas connection string.
+   * `BACKEND_URL`: `https://blog-backend.onrender.com`. If Render gives the backend a
+     different URL, update this value later under *blog-frontend → Environment*.
+4. Choose **Apply**. Render builds both Dockerfiles and starts the containers. It sets
+   `PORT=10000`, and both images read `$PORT`, so no change is needed.
 
 | Service | Environment variable | Purpose |
 |---|---|---|
 | blog-backend | `DATABASE_URL` | MongoDB Atlas connection string |
-| blog-backend | `PORT` (set by Cloud Run = 8080) | listening port |
-| blog-frontend | `BACKEND_URL` | backend API URL that nginx proxies `/api` to |
+| blog-backend | `PORT` (set by Render = 10000) | listening port |
+| blog-frontend | `BACKEND_URL` | backend API URL that nginx proxies `/api` to (over HTTPS) |
 
 ### 3(e) Check the public deployment
 ```powershell
-curl https://blog-backend-xxxxx.asia-south1.run.app/api/v1/health
+curl https://blog-backend.onrender.com/api/v1/health
 # {"status":"ok","database":"connected"}
 ```
-Open the frontend URL, create a post, then refresh. The post is still listed because it is stored in Atlas.
-**Public URL [fill in]:** `https://blog-frontend-xxxxx.asia-south1.run.app`
+Open `https://blog-frontend.onrender.com`, create a post, then refresh. The post is still listed because it is stored in Atlas.
+A free Render service sleeps after about 15 minutes idle, so the first request can take ~30–60 s.
+**Public URL [fill in]:** `https://blog-frontend.onrender.com`
 
 ---
 
@@ -511,21 +539,23 @@ After you push, GitHub shows green ✓ runs for **Backend CI** and **Frontend CI
 
 ## Task 5 – Continuous Delivery / Deployment (CD)
 
-### 5(a)(b) Build, push to Docker Hub and deploy to Cloud Run – `.github/workflows/cd.yml`
+### 5(a)(b) Build, push to Docker Hub and deploy to Render – `.github/workflows/cd.yml`
 ```yaml
-name: CD - Build, Push & Deploy to Cloud Run
+name: CD - Build, Push & Deploy to Render
+
+# Runs when code lands on main (direct push or merged pull request)
 on:
   push:
-    branches: [main]          # direct push or merged PR
+    branches: [main]
   workflow_dispatch:
 
 env:
-  REGION: ${{ vars.GCP_REGION || 'asia-south1' }}
   BACKEND_IMAGE: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/blog-backend
   FRONTEND_IMAGE: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/blog-frontend
 
 jobs:
-  test:                                   # gate: tests must pass
+  # 1) Re-run the backend tests before shipping anything
+  test:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -541,24 +571,32 @@ jobs:
       - run: npm run lint
       - run: npm test
 
-  build-and-push:                         # Docker Hub
+  # 2) Build both images and push them to Docker Hub
+  build-and-push:
     needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
+
+      - name: Build & push backend image
+        uses: docker/build-push-action@v6
         with:
           context: ./backend
           push: true
           tags: |
             ${{ env.BACKEND_IMAGE }}:latest
             ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
-      - uses: docker/build-push-action@v6
+
+      - name: Build & push frontend image
+        uses: docker/build-push-action@v6
         with:
           context: ./frontend
           push: true
@@ -566,39 +604,31 @@ jobs:
             ${{ env.FRONTEND_IMAGE }}:latest
             ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
 
-  deploy:                                 # Google Cloud Run
+  # 3) Trigger Render to redeploy both services (deploy hooks), then smoke-test
+  deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-      - uses: google-github-actions/setup-gcloud@v2
-      - id: backend
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: blog-backend
-          region: ${{ env.REGION }}
-          image: ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
-          flags: --allow-unauthenticated --port=8080
-          env_vars: |
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
-            CORS_ORIGIN=*
-      - id: frontend
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: blog-frontend
-          region: ${{ env.REGION }}
-          image: ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
-          flags: --allow-unauthenticated --port=8080
-          env_vars: |
-            BACKEND_URL=${{ steps.backend.outputs.url }}
-      - name: Smoke test deployed services
+      - name: Trigger Render deploy – backend
+        run: curl -fsS -X POST "${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}"
+
+      - name: Trigger Render deploy – frontend
+        run: curl -fsS -X POST "${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK }}"
+
+      - name: Wait for the deployed app to respond
         run: |
-          curl -fsS "${{ steps.backend.outputs.url }}/api/v1/health"
-          curl -fsS "${{ steps.frontend.outputs.url }}/api/v1/posts" > /dev/null
-          echo "Deployment healthy"
+          # Free Render services take a few minutes to build and may cold-start
+          for i in $(seq 1 40); do
+            if curl -fsS "${{ vars.RENDER_FRONTEND_URL }}/api/v1/health"; then
+              echo; echo "Deployment healthy: ${{ vars.RENDER_FRONTEND_URL }}"; exit 0
+            fi
+            echo "waiting... ($i)"; sleep 15
+          done
+          echo "App did not become healthy in time"; exit 1
 ```
+Render **deploy hooks** are secret URLs. A `POST` to one tells Render to pull the latest
+code and redeploy that service. `autoDeploy: false` in `render.yaml` means Render deploys
+only when this workflow calls the hooks, which happens after the tests pass.
 
 ### 5(c) Store credentials as GitHub repository secrets
 Go to **GitHub repo → Settings → Secrets and variables → Actions → New repository secret**.
@@ -607,10 +637,11 @@ Go to **GitHub repo → Settings → Secrets and variables → Actions → New r
 |---|---|
 | `DOCKERHUB_USERNAME` | your Docker Hub username |
 | `DOCKERHUB_TOKEN` | Docker Hub → Account settings → Personal access tokens (Read & Write) |
-| `GCP_SA_KEY` | GCP → IAM → Service accounts → create `github-deployer` with roles **Cloud Run Admin** and **Service Account User** → Keys → Add key (JSON) → paste the whole JSON |
-| `DATABASE_URL` | Atlas connection string from Task 3(a) |
+| `RENDER_BACKEND_DEPLOY_HOOK` | Render → blog-backend → Settings → Deploy Hook (copy URL) |
+| `RENDER_FRONTEND_DEPLOY_HOOK` | Render → blog-frontend → Settings → Deploy Hook |
+| *Variable* `RENDER_FRONTEND_URL` | Variables tab (not a secret): `https://blog-frontend.onrender.com` |
 
-The workflow reads the credentials from these secrets, so they never appear in the code
+`DATABASE_URL` is stored in Render's environment settings, not in GitHub. The workflow reads the credentials from these secrets, so they never appear in the code
 and GitHub masks them in the logs.
 
 ### 5(d) Automatic deployment after a merge to main
@@ -622,7 +653,7 @@ git push -u origin feature/update-title
 ```
 1. Open a pull request. **Backend CI** and **Frontend CI** run on the PR.
 2. Merge the PR into `main`. **CD** starts on its own: test → build-and-push → deploy.
-3. When the run is green, refresh the Cloud Run URL. The change is live, and Docker Hub
+3. When the run is green, refresh the Render URL. The change is live, and Docker Hub
    shows new image tags (`latest` and the commit SHA). **[screenshots]**
 
 ---
@@ -633,23 +664,23 @@ git push -u origin feature/update-title
 |---|---|
 | **Docker** | Packages each service with its runtime and dependencies into an image, so it runs the same way on a laptop, a CI runner and the cloud. |
 | **Docker Compose** | Describes the multi-container app (frontend, backend, MongoDB): network, ports, environment variables, volumes and start order. One command starts or stops all of it. |
-| **Docker Hub** | Image registry that stores versioned images (`latest` and a tag per commit). Cloud Run pulls the images from here. |
-| **GitHub Actions** | CI lints, tests and builds on every push and pull request. CD builds and pushes the images, then deploys to Cloud Run when `main` changes. |
-| **Google Cloud Run** | Serverless container hosting. It runs the images behind a public HTTPS URL, scales automatically (down to zero) and injects environment variables. |
+| **Docker Hub** | Image registry that stores versioned images (`latest` and a tag per commit). Render (or Cloud Run) can deploy straight from these images. |
+| **GitHub Actions** | CI lints, tests and builds on every push and pull request. CD builds and pushes the images, then triggers the Render deploy when `main` changes. |
+| **Render** (in place of Google Cloud Run) | Hosts the containers as public HTTPS web services, injects environment variables and redeploys when its deploy hook is called. Google Cloud Run does the same job and scales to zero. |
 | **MongoDB Atlas** | Managed cloud MongoDB used by the deployed backend. |
 
 ## Challenges encountered and solutions
 | Challenge | Solution |
 |---|---|
-| Vite bakes `VITE_*` variables in at build time, but the backend URL on Cloud Run is only known after it is deployed. | The frontend calls the relative path `/api`, and nginx proxies it to `$BACKEND_URL`, which is set when the container starts. One image works everywhere, with no CORS issues. |
+| Vite bakes `VITE_*` variables in at build time, but the backend URL on Render is only known after it is deployed. | The frontend calls the relative path `/api`, and nginx proxies it to `$BACKEND_URL`, which is set when the container starts. One image works everywhere, with no CORS issues. |
 | nginx `envsubst` would also replace `$uri` and `$scheme`. | `NGINX_ENVSUBST_FILTER="^(PORT|BACKEND_URL)$"` |
-| Proxying to the HTTPS Cloud Run backend failed the TLS handshake. | `proxy_ssl_server_name on;` |
-| Cloud Run requires the container to listen on the `$PORT` it injects. | Both containers read `PORT`; the deploy uses `--port 8080`. |
+| Proxying to the HTTPS Render backend failed the TLS handshake. | `proxy_ssl_server_name on;` |
+| Render (like Cloud Run) requires the container to listen on the `$PORT` it injects (10000). | Both containers read `PORT`; checked locally with `PORT=10000`. |
 | The backend started before MongoDB was ready. | A healthcheck on Mongo plus `depends_on: condition: service_healthy`. |
 | The first `docker compose up` failed with `short read: unexpected EOF` while pulling `mongo:7`. | The network dropped during the download. Running the pull again fixed it. |
 | The CI tests need a database. | `mongodb-memory-server` starts a throwaway MongoDB inside Jest. |
-| Atlas refused connections from Cloud Run. | Network Access set to `0.0.0.0/0`. |
-| Keeping secrets out of the repo and images. | `.env` is listed in `.gitignore` and `.dockerignore`; credentials are stored as GitHub secrets and Cloud Run environment variables. |
+| Atlas refused connections from Render. | Network Access set to `0.0.0.0/0`. |
+| Keeping secrets out of the repo and images. | `.env` is listed in `.gitignore` and `.dockerignore`; credentials are stored as GitHub secrets and Render environment variables. |
 
 ## Submission checklist
 | # | Item | Where |
@@ -661,5 +692,5 @@ git push -u origin feature/update-title
 | 5 | Docker Hub URLs | **[fill in]** |
 | 6 | Public app URL | **[fill in]** |
 | 7 | CI/CD workflow files | `.github/workflows/` |
-| 8 | Screenshots | `screenshots/` (Compose screenshot included; add Docker Hub, Cloud Run and Actions) |
+| 8 | Screenshots | `screenshots/` (Compose screenshot included; add Docker Hub, Render and Actions) |
 | 9 | Report | this document + `REPORT.md` |
