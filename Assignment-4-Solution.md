@@ -414,7 +414,7 @@ git init
 git add .
 git commit -m "MERN blog with Docker, Compose and CI/CD"
 git branch -M main
-git remote add origin https://github.com/<user>/mern-blog-devops.git
+git remote add origin https://github.com/Aditya-18849/Blog-Application.git
 git push -u origin main
 ```
 `.gitignore` excludes `node_modules/`, `dist/` and `.env`.
@@ -688,7 +688,7 @@ git push -u origin feature/update-title
 | 1 | Complete source code | `backend/`, `frontend/` |
 | 2 | Dockerfiles + .dockerignore | `backend/`, `frontend/` |
 | 3 | Docker Compose file | `docker-compose.yml` |
-| 4 | GitHub repository URL | **[fill in]** |
+| 4 | GitHub repository URL | https://github.com/Aditya-18849/Blog-Application |
 | 5 | Docker Hub URLs | **[fill in]** |
 | 6 | Public app URL | **[fill in]** |
 | 7 | CI/CD workflow files | `.github/workflows/` |

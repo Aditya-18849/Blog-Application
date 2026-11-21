@@ -98,6 +98,6 @@ both `Dockerfile`s and `.dockerignore`s, `frontend/nginx/default.conf.template`,
 `docker-compose.yml`, `.github/workflows/{backend-ci,frontend-ci,cd}.yml`.
 
 ### 7. Submission links (fill in)
-* GitHub repository: `https://github.com/<user>/<repo>`
+* GitHub repository: https://github.com/Aditya-18849/Blog-Application
 * Docker Hub: `https://hub.docker.com/r/<user>/blog-backend`, `https://hub.docker.com/r/<user>/blog-frontend`
 * Deployed application: `https://blog-frontend-xxxx.<region>.run.app`
