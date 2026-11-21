@@ -1,0 +1,13 @@
+$ docker build -t blog-backend ./backend
+#3 [internal] load .dockerignore
+#3 DONE 0.0s
+#4 [internal] load build context
+#4 DONE 0.0s
+#5 [1/5] FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
+#5 DONE 0.1s
+#6 [2/5] WORKDIR /app
+#7 [3/5] COPY package*.json ./
+#8 [4/5] RUN npm ci --omit=dev && npm cache clean --force
+#9 [5/5] COPY src ./src
+#10 naming to docker.io/library/blog-backend:latest done
+#10 DONE 0.3s

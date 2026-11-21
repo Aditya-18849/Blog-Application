@@ -1,0 +1,50 @@
+# MERN Blog – local multi-container setup
+#   docker compose up -d --build     -> start everything
+#   docker compose ps / logs -f      -> inspect
+#   docker compose down [-v]         -> stop (and drop the DB volume)
+services:
+  mongo:
+    image: mongo:7
+    container_name: blog-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build: ./backend
+    image: ${DOCKERHUB_USERNAME:-local}/blog-backend:latest
+    container_name: blog-backend
+    restart: unless-stopped
+    environment:
+      PORT: 3001
+      DATABASE_URL: mongodb://mongo:27017/blog
+      CORS_ORIGIN: "*"
+    ports:
+      - "3001:3001"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    image: ${DOCKERHUB_USERNAME:-local}/blog-frontend:latest
+    container_name: blog-frontend
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      BACKEND_URL: http://backend:3001
+    ports:
+      - "3000:8080"
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:

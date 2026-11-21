@@ -1,0 +1,4 @@
+NAME            IMAGE                        STATUS                   PORTS
+blog-backend    local/blog-backend:latest    Up 3 minutes             0.0.0.0:3001->3001/tcp, [::]:3001->3001/tcp
+blog-frontend   local/blog-frontend:latest   Up 3 minutes             0.0.0.0:3000->8080/tcp, [::]:3000->8080/tcp
+blog-mongo      mongo:7                      Up 4 minutes (healthy)   0.0.0.0:27017->27017/tcp, [::]:27017->27017/tcp

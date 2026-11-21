@@ -1,0 +1,31 @@
+# Render Blueprint – creates both services from this repo's Dockerfiles.
+# Render dashboard -> New -> Blueprint -> pick this GitHub repo.
+# Deploys are triggered by the GitHub Actions CD workflow (deploy hooks),
+# so autoDeploy is off; set it to true if you want Render to deploy on every push.
+services:
+  - type: web
+    name: blog-backend
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/v1/health
+    autoDeploy: false
+    envVars:
+      - key: DATABASE_URL        # MongoDB Atlas connection string (entered in the dashboard)
+        sync: false
+      - key: CORS_ORIGIN
+        value: "*"
+
+  - type: web
+    name: blog-frontend
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    autoDeploy: false
+    envVars:
+      - key: BACKEND_URL         # public URL of blog-backend, e.g. https://blog-backend.onrender.com
+        sync: false

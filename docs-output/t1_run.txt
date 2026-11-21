@@ -1,0 +1,26 @@
+$ docker network create blog-net
+$ docker run -d --name t1-mongo --network blog-net mongo:7
+b7ca56504ade091e56d2c2d04114b10eb15459370ded5ab4dc1e2cd541ab64f9
+$ docker run -d --name t1-backend --network blog-net -p 4001:3001 -e DATABASE_URL=mongodb://t1-mongo:27017/blog blog-backend
+f5d4e1b9ee099155e083c97659d5c28bffe8d9724434860b6ccb0a7fee107671
+$ docker run -d --name t1-frontend --network blog-net -p 4000:8080 -e BACKEND_URL=http://t1-backend:3001 blog-frontend
+d870f308c2940a798119036e35d6bed626b01c88bb4bbaa680da9a30f6b94a96
+
+$ docker ps --filter name=t1-
+NAMES         IMAGE           STATUS          PORTS
+t1-frontend   blog-frontend   Up 4 seconds    0.0.0.0:4000->8080/tcp, [::]:4000->8080/tcp
+t1-backend    blog-backend    Up 6 seconds    0.0.0.0:4001->3001/tcp, [::]:4001->3001/tcp
+t1-mongo      mongo:7         Up 13 seconds   27017/tcp
+
+$ docker logs t1-backend
+Connected to MongoDB
+Express server running on port 3001
+
+$ curl -X POST http://localhost:4000/api/v1/posts ...   (through the frontend container)
+{"title":"Standalone containers","author":"Student","contents":"Frontend container talks to backend container","tags":["docker"],"_id":"6b01cd07039fa7f63af80535","createdAt":"2026-11-21T16:55:35.609Z","updatedAt":"2026-11-21T16:55:35.609Z","__v":0}
+
+$ curl http://localhost:4000/api/v1/posts
+[{"_id":"6b01cd07039fa7f63af80535","title":"Standalone containers","author":"Student","contents":"Frontend container talks to backend container","tags":["docker"],"createdAt":"2026-11-21T16:55:35.609Z","updatedAt":"2026-11-21T16:55:35.609Z","__v":0}]
+
+$ curl http://localhost:4000/api/v1/health
+{"status":"ok","database":"connected"}
