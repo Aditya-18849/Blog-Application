@@ -384,7 +384,7 @@ Steps:
 2. On dashboard.render.com, sign in with GitHub, then choose **New → Blueprint** and select the repo.
 3. Render asks for the `sync: false` values:
    * `DATABASE_URL`: the Atlas connection string.
-   * `BACKEND_URL`: `https://blog-backend.onrender.com`. If Render gives the backend a
+   * `BACKEND_URL`: `https://blog-backend-oqz6.onrender.com`. If Render gives the backend a
      different URL, update this value later under *blog-frontend → Environment*.
 4. Choose **Apply**. Render builds both Dockerfiles and starts the containers. It sets
    `PORT=10000`, and both images read `$PORT`, so no change is needed.
@@ -395,14 +395,31 @@ Steps:
 | blog-backend | `PORT` (set by Render = 10000) | listening port |
 | blog-frontend | `BACKEND_URL` | backend API URL that nginx proxies `/api` to (over HTTPS) |
 
-### 3(e) Check the public deployment
-```powershell
-curl https://blog-backend.onrender.com/api/v1/health
-# {"status":"ok","database":"connected"}
+### 3(e) Check the public deployment (actual output, 21 Nov 2026)
+Live URLs:
+* **Frontend:** https://blog-frontend-26rr.onrender.com
+* **Backend API:** https://blog-backend-oqz6.onrender.com
+
+Render added a suffix to the backend name (`-oqz6`), so `BACKEND_URL` on blog-frontend
+was changed to `https://blog-backend-oqz6.onrender.com` (Environment → Save, rebuild and deploy).
+
 ```
-Open `https://blog-frontend.onrender.com`, create a post, then refresh. The post is still listed because it is stored in Atlas.
+$ curl https://blog-backend-oqz6.onrender.com/api/v1/health
+{"status":"ok","database":"connected"}
+
+$ curl https://blog-frontend-26rr.onrender.com/api/v1/health        # through the frontend's nginx proxy
+{"status":"ok","database":"connected"}
+
+$ curl -X POST https://blog-frontend-26rr.onrender.com/api/v1/posts -H "Content-Type: application/json"     -d '{"title":"Hello from Render","author":"Aditya","contents":"Deployed with Docker, GitHub Actions, Render and MongoDB Atlas.","tags":["render","mern"]}'
+{"title":"Hello from Render","author":"Aditya","contents":"Deployed with Docker, GitHub Actions, Render and MongoDB Atlas.","tags":["render","mern"],"_id":"6b01e0507cb979eef5f837d1","createdAt":"2026-11-21T18:17:52.957Z",...}
+
+$ curl https://blog-frontend-26rr.onrender.com/api/v1/posts
+[{"_id":"6b01e0507cb979eef5f837d1","title":"Hello from Render","author":"Aditya",...}]
+```
+The page shows *API: online (db: connected)* and the post, which is stored in MongoDB Atlas (Cluster0, AWS Mumbai, free tier).
 A free Render service sleeps after about 15 minutes idle, so the first request can take ~30–60 s.
-**Public URL [fill in]:** `https://blog-frontend.onrender.com`
+
+![Blog running on Render](screenshots/app-render-live.jpg)
 
 ---
 
@@ -639,7 +656,7 @@ Go to **GitHub repo → Settings → Secrets and variables → Actions → New r
 | `DOCKERHUB_TOKEN` | Docker Hub → Account settings → Personal access tokens (Read & Write) |
 | `RENDER_BACKEND_DEPLOY_HOOK` | Render → blog-backend → Settings → Deploy Hook (copy URL) |
 | `RENDER_FRONTEND_DEPLOY_HOOK` | Render → blog-frontend → Settings → Deploy Hook |
-| *Variable* `RENDER_FRONTEND_URL` | Variables tab (not a secret): `https://blog-frontend.onrender.com` |
+| *Variable* `RENDER_FRONTEND_URL` | Variables tab (not a secret): `https://blog-frontend-26rr.onrender.com` |
 
 `DATABASE_URL` is stored in Render's environment settings, not in GitHub. The workflow reads the credentials from these secrets, so they never appear in the code
 and GitHub masks them in the logs.
@@ -690,7 +707,7 @@ git push -u origin feature/update-title
 | 3 | Docker Compose file | `docker-compose.yml` |
 | 4 | GitHub repository URL | https://github.com/Aditya-18849/Blog-Application |
 | 5 | Docker Hub URLs | **[fill in]** |
-| 6 | Public app URL | **[fill in]** |
+| 6 | Public app URL | https://blog-frontend-26rr.onrender.com (API: https://blog-backend-oqz6.onrender.com) |
 | 7 | CI/CD workflow files | `.github/workflows/` |
-| 8 | Screenshots | `screenshots/` (Compose screenshot included; add Docker Hub, Render and Actions) |
+| 8 | Screenshots | `screenshots/app-docker-compose.jpg`, `screenshots/app-render-live.jpg` (add Docker Hub and Actions) |
 | 9 | Report | this document + `REPORT.md` |

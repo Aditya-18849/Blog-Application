@@ -75,8 +75,8 @@ Frontend http://localhost:3000 · Backend http://localhost:3001 · MongoDB local
 1. MongoDB Atlas free M0 cluster, network access `0.0.0.0/0`, copy the connection string.
 2. Push this repo to GitHub.
 3. dashboard.render.com → **New → Blueprint** → select the repo (`render.yaml` defines both services).
-4. Enter `DATABASE_URL` (Atlas string) and `BACKEND_URL` (`https://blog-backend.onrender.com`, or the real backend URL Render shows) → **Apply**.
-5. Open `https://blog-frontend.onrender.com` and create a post.
+4. Enter `DATABASE_URL` (Atlas string) and `BACKEND_URL` (`https://blog-backend-oqz6.onrender.com`, or the real backend URL Render shows) → **Apply**.
+5. Open `https://blog-frontend-26rr.onrender.com` and create a post.
 
 ## 4b. Alternative: Google Cloud Run (manual, first time)
 
@@ -112,7 +112,7 @@ Push the project to GitHub, then add **Settings → Secrets and variables → Ac
 | `RENDER_BACKEND_DEPLOY_HOOK` | Render → blog-backend → Settings → Deploy Hook |
 | `RENDER_FRONTEND_DEPLOY_HOOK` | Render → blog-frontend → Settings → Deploy Hook |
 
-Repository **variable** `RENDER_FRONTEND_URL` = `https://blog-frontend.onrender.com` (used for the smoke test).
+Repository **variable** `RENDER_FRONTEND_URL` = `https://blog-frontend-26rr.onrender.com` (used for the smoke test).
 
 * Every push / pull request → **Backend CI** and **Frontend CI** (install, lint, test/build).
 * Every push or merged PR to `main` → **CD** (tests → Docker Hub push tagged `latest` + commit SHA → Render deploy hooks → smoke test).

@@ -100,4 +100,4 @@ both `Dockerfile`s and `.dockerignore`s, `frontend/nginx/default.conf.template`,
 ### 7. Submission links (fill in)
 * GitHub repository: https://github.com/Aditya-18849/Blog-Application
 * Docker Hub: `https://hub.docker.com/r/<user>/blog-backend`, `https://hub.docker.com/r/<user>/blog-frontend`
-* Deployed application: `https://blog-frontend-xxxx.<region>.run.app`
+* Deployed application (Render): https://blog-frontend-26rr.onrender.com  — backend API: https://blog-backend-oqz6.onrender.com
